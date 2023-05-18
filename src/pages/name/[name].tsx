@@ -1,19 +1,27 @@
+import { pokemonAPI } from "@/api";
 import { Layout } from "@/components/layouts";
+import { IPokemonResponse, IPokemonResults } from "@/interfaces";
 import { IPokemon } from "@/interfaces/pokemon.interface";
-import { getPokemonInfo, localStorageFavorites } from "@/utils";
+import { localStorageFavorites } from "@/utils";
 import { Button, Card, Container, Grid, Text } from "@nextui-org/react";
 import confetti from "canvas-confetti";
 import { GetStaticPaths, GetStaticProps, NextPage } from "next";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface IPropsPokemonPage {
   pokemon: IPokemon;
 }
 
-const PokemonPage: NextPage<IPropsPokemonPage> = ({
+const PokemonPageByName: NextPage<IPropsPokemonPage> = ({
   pokemon,
 }: IPropsPokemonPage) => {
+  const [isInFavorites, setIsInFavorites] = useState(false);
+
+  useEffect(() => {
+    setIsInFavorites(localStorageFavorites.existInFavorites(pokemon.id));
+  });
+
   const onToggleFavorites = () => {
     localStorageFavorites.toggleFavorite(pokemon.id);
     setIsInFavorites(!isInFavorites);
@@ -32,12 +40,8 @@ const PokemonPage: NextPage<IPropsPokemonPage> = ({
     });
   };
 
-  const [isInFavorites, setIsInFavorites] = useState(
-    localStorageFavorites.existInFavorites(pokemon.id)
-  );
-
   return (
-    <Layout title="Pokemon">
+    <Layout title={pokemon.name}>
       <Grid.Container
         css={{
           marginTop: "5px",
@@ -111,12 +115,13 @@ const PokemonPage: NextPage<IPropsPokemonPage> = ({
   );
 };
 
-// You should use getStaticPaths if you’re statically pre-rendering pages that use dynamic routes
 export const getStaticPaths: GetStaticPaths = async () => {
-  const paths: { params: { id: string } }[] = [...Array(151)].map(
-    (value: null, i: number) => ({
+  const { data } = await pokemonAPI.get<IPokemonResponse>("/pokemon?limit=151");
+
+  const paths: { params: { name: string } }[] = data.results.map(
+    (pokemon: IPokemonResults) => ({
       params: {
-        id: `${i + 1}`,
+        name: pokemon.name,
       },
     })
   );
@@ -127,20 +132,22 @@ export const getStaticPaths: GetStaticPaths = async () => {
   };
 };
 
-// You should use getStaticProps when:
-//- The data required to render the page is available at build time ahead of a user’s request.
-//- The data comes from a headless CMS.
-//- The data can be publicly cached (not user-specific).
-//- The page must be pre-rendered (for SEO) and be very fast — getStaticProps generates HTML and JSON files, both of which can be cached by a CDN for performance.
+export const getStaticProps: GetStaticProps = async (ctx) => {
+  const { name: namePokemon } = ctx.params as { name: string };
 
-export const getStaticProps: GetStaticProps = async ({ params }) => {
-  const { id } = params as { id: string };
+  const { data } = await pokemonAPI.get<IPokemon>(`/pokemon/${namePokemon}`);
+
+  const { id, name, sprites } = data;
 
   return {
     props: {
-      pokemon: await getPokemonInfo(id),
+      pokemon: {
+        id,
+        name,
+        sprites,
+      },
     },
   };
 };
 
-export default PokemonPage;
+export default PokemonPageByName;

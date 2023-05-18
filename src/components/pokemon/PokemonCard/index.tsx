@@ -10,7 +10,7 @@ export const PokemonCard = ({ pokemon }: IPokemonCardProps) => {
   const router = useRouter();
 
   const submitPage = () => {
-    router.push(`/pokemon/${pokemon.id}`);
+    router.push(`/name/${pokemon.name}`);
   };
 
   return (
